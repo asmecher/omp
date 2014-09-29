@@ -13,8 +13,6 @@
  * @brief TinyMCE WYSIWYG plugin for textareas - to allow cross-browser HTML editing
  */
 
-
-
 import('lib.pkp.classes.plugins.GenericPlugin');
 
 define('TINYMCE_INSTALL_PATH', 'lib/pkp/lib/tinymce');
@@ -30,8 +28,12 @@ class TinyMCEPlugin extends GenericPlugin {
 	 */
 	function register($category, $path) {
 		if (parent::register($category, $path)) {
-			if ($this->isMCEInstalled() && $this->getEnabled()) {
-				HookRegistry::register('TemplateManager::display',array(&$this, 'callback'));
+			if ($this->getEnabled()) {
+				// Inject TinyMCE editor upon template display
+				HookRegistry::register('TemplateManager::display',array(&$this, 'callbackHandleDisplay'));
+
+				// Watch for requests for the PKP tags pop-up
+				HookRegistry::register('LoadHandler', array($this, 'callbackHandleTagsPopup'));
 			}
 			return true;
 		}
@@ -62,55 +64,46 @@ class TinyMCEPlugin extends GenericPlugin {
 	 * @param $args array
 	 * @return boolean
 	 */
-	function callback($hookName, $args) {
+	function callbackHandleDisplay($hookName, $args) {
 		$request =& Registry::get('request');
-		$templateManager =& $args[0];
+		$dispatcher = $request->getDispatcher();
+		$templateMgr =& $args[0];
 
-		$baseUrl = $templateManager->get_template_vars('baseUrl');
-		$additionalHeadData = $templateManager->get_template_vars('additionalHeadData');
+		$baseUrl = $templateMgr->get_template_vars('baseUrl');
+		$additionalHeadData = $templateMgr->get_template_vars('additionalHeadData');
+
 		$allLocales = AppLocale::getAllLocales();
 		$localeList = array();
 		foreach ($allLocales as $key => $locale) {
 			$localeList[] = String::substr($key, 0, 2);
 		}
+		$templateMgr->assign('localeList', join(',', $localeList));
+		$tinyMceHeaders = $templateMgr->fetch($this->getTemplatePath() . 'headers.tpl');
 
-		$tinymceScript = '
-		<script type="text/javascript" src="'.$baseUrl.'/'.TINYMCE_JS_PATH.'/tiny_mce_gzip.js"></script>
-		<script type="text/javascript">
-			<!--
-			tinyMCE_GZ.init({
-				relative_urls: "false",
-				plugins: "paste,jbimages,fullscreen",
-				themes: "advanced",
-				languages: "' . join(',', $localeList) . '",
-				disk_cache: true
-			});
-			// -->
-		</script>
-		<script type="text/javascript">
-			<!--
-			tinyMCE.init({
-				width: "100%",
-				entity_encoding: "raw",
-				plugins: "paste,jbimages,fullscreen",
-				mode: "specific_textareas",
-				editor_selector: "richContent",
-				language: "' . String::substr(AppLocale::getLocale(), 0, 2) . '",
-				relative_urls: false,
-				forced_root_block: "p",
-				paste_auto_cleanup_on_paste: true,
-				apply_source_formatting: false,
-				theme : "advanced",
-				theme_advanced_buttons1: "cut,copy,paste,|,bold,italic,underline,bullist,numlist,|,link,unlink,help,code,fullscreen,jbimages",
-				theme_advanced_buttons2: "",
-				theme_advanced_buttons3: "",
-				init_instance_callback: $.pkp.controllers.SiteHandler.prototype.triggerTinyMCEInitialized,
-				setup: $.pkp.controllers.SiteHandler.prototype.triggerTinyMCESetup
-			});
-			// -->
-		</script>';
+		$templateMgr->assign('additionalHeadData', $additionalHeadData . "\n" . $tinyMceHeaders);
+		return false;
+	}
 
-		$templateManager->assign('additionalHeadData', $additionalHeadData."\n".$tinymceScript);
+	/**
+	 * Watch for requests to the TinyMCE pop-up.
+	 * @param $hookName string The name of the invoked hook
+	 * @param $args array Hook parameters
+	 * @return boolean Hook handling status
+	 */
+	function callbackHandleTagsPopup($hookName, $args) {
+		$page =& $args[0];
+		$op =& $args[1];
+
+		switch ("$page/$op") {
+			case 'tinymce/listtags':
+				define('HANDLER_CLASS', 'TinyMCEHandler');
+				$this->import('TinyMCEHandler');
+
+				// Allow the TinyMCE handler to get the plugin object
+				TinyMCEHandler::setPlugin($this);
+				return true;
+		}
+
 		return false;
 	}
 
@@ -127,26 +120,21 @@ class TinyMCEPlugin extends GenericPlugin {
 	 * @return string
 	 */
 	function getDescription() {
-		if ($this->isMCEInstalled()) return __('plugins.generic.tinymce.description');
-		return __('plugins.generic.tinymce.descriptionDisabled', array('tinyMcePath' => TINYMCE_INSTALL_PATH));
+		return __('plugins.generic.tinymce.description');
 	}
 
 	/**
-	 * Check whether or not the TinyMCE library is installed
-	 * @return boolean
+	 * Get the JavaScript URL for this plugin.
 	 */
-	function isMCEInstalled() {
-		return file_exists(TINYMCE_JS_PATH . '/tiny_mce.js');
+	function getJavaScriptURL($request) {
+		return $request->getBaseUrl() . '/' . $this->getPluginPath() . '/js';
 	}
 
 	/**
-	 * Get a list of available management verbs for this plugin
-	 * @return array
+	 * @copydoc PKPPlugin::getTemplatePath
 	 */
-	function getManagementVerbs() {
-		$verbs = array();
-		if ($this->isMCEInstalled()) $verbs = parent::getManagementVerbs();
-		return $verbs;
+	function getTemplatePath() {
+		return parent::getTemplatePath() . 'templates/';
 	}
 }
 
