@@ -13,6 +13,7 @@
  *  $publishedMonograph PublishedMonograph The published monograph object.
  *}
 {foreach from=$availableFiles[$publicationFormatId] item=availableFile}{* There will be at most one of these *}
+	{if !$availableFile->getData('chapterId')}
 	<li>
 		<div class="publicationFormatName">{$availableFile->getLocalizedName()|escape}</div>
 		<div class="publicationFormatLink">
@@ -21,7 +22,8 @@
 			{else}
 				{url|assign:downloadUrl op="download" path=$publishedMonograph->getId()|to_array:$publicationFormatId:$availableFile->getFileIdAndRevision()}
 			{/if}
-			<a href="{$downloadUrl}"><span title="{$availableFile->getDocumentType()|upper|escape}" class="sprite {$availableFile->getDocumentType()|escape}"></span>{if $availableFile->getDirectSalesPrice()}{translate key="payment.directSales.purchase amount=$availableFile->getDirectSalesPrice() currency=$currency}{else}{translate key="payment.directSales.download"}<span title="{translate key="monograph.accessLogoOpen.altText"}" class="sprite openaccess"></span>{/if}</a>
+			<a href="{$downloadUrl}"><span title="{$availableFile->getDocumentType()|upper|escape}" class="sprite {$availableFile->getDocumentType()|escape}"></span>{if $availableFile->getDirectSalesPrice()}{translate key="payment.directSales.purchase amount=$availableFile->getDirectSalesPrice() currency=$currency}{else}<span title="{translate key="monograph.accessLogoOpen.altText"}" class="sprite openaccess"></span>{/if}</a>
 		</div>
 	</li>
+	{/if}
 {/foreach}
