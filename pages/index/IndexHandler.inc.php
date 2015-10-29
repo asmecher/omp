@@ -134,17 +134,6 @@ class IndexHandler extends Handler {
 		$series = $seriesDao->getByPressId($press->getId());
 		$templateMgr->assign('series', $series);
 
-		// Include any social media items that are configured for the press itself.
-		$socialMediaDao = DAORegistry::getDAO('SocialMediaDAO');
-		$socialMedia =& $socialMediaDao->getEnabledForContextByContextId($press->getId());
-		$blocks = array();
-		while ($media = $socialMedia->next()) {
-			$media->replaceCodeVars();
-			$blocks[] = $media->getCode();
-		}
-
-		$templateMgr->assign_by_ref('socialMediaBlocks', $blocks);
-
 		$templateMgr->display('frontend/pages/index.tpl');
 	}
 }

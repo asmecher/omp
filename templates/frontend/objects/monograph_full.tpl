@@ -17,7 +17,6 @@
  * @uses $availableFiles array List of available MonographFiles
  * @uses $chapters array List of chapters in monograph. Associative array
  * @uses $sharingCode string Code snippet for a social sharing widget
- * @uses $blocks array List of HTML snippets to display block elements
  *}
 <div class="obj_monograph_full">
 	<h1 class="title">
@@ -181,15 +180,6 @@
 						</ul>
 					</span>
 				</div>
-			{/if}
-
-			{* Custom blocks *}
-			{if !empty($blocks)}
-				{foreach from=$blocks item=block key=blockKey}
-					<div class="item block {$blockKey|escape}">
-						{$block}
-					</div>
-				{/foreach}
 			{/if}
 
 			{* Copyright statement *}
